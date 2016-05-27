@@ -11,7 +11,7 @@ import java.io.PrintStream;
  */
 
 
-public class MessageHandler extends SimpleChannelInboundHandler<String> {
+public class ClientMessageHandler extends SimpleChannelInboundHandler<String> {
 
     private PrintStream out = System.out;
 
@@ -25,6 +25,6 @@ public class MessageHandler extends SimpleChannelInboundHandler<String> {
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         out.println("channel inactive");
-        ctx.close();
+        ctx.channel().close();
     }
 }
