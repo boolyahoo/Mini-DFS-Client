@@ -23,6 +23,8 @@ public class Client {
     }
 
     public void run() throws Exception {
+
+        // 命令行解析
         EventLoopGroup group = new NioEventLoopGroup();
         try {
             Bootstrap bStrap = new Bootstrap()
