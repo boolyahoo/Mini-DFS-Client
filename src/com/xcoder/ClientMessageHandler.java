@@ -15,8 +15,8 @@ public class ClientMessageHandler extends SimpleChannelInboundHandler<String> {
 
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, String s) throws Exception {
-        out.println(s);
+    protected void channelRead0(ChannelHandlerContext ctx, String message) throws Exception {
+        out.println(message);
     }
 
 
@@ -26,13 +26,6 @@ public class ClientMessageHandler extends SimpleChannelInboundHandler<String> {
         out.println("channel active!");
         out.println("channel remote address : " + channel.remoteAddress());
         out.println("channel local address : " + channel.localAddress());
-        byte type = 0x01;
-        ChannelFuture cFuture = channel.writeAndFlush("client     fdffff" + "\r\n");
-        cFuture.addListener(new ChannelFutureListener() {
-            public void operationComplete(ChannelFuture future) throws Exception {
-                out.println("client write to master successfully");
-            }
-        });
     }
 
 

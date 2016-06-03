@@ -3,6 +3,8 @@ package com.xcoder;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -20,6 +22,7 @@ public class Client {
     private static final String host = "localhost";
     private static final int port = 8080;
     private PrintStream out = System.out;
+    private Channel channel;
 
 
     public void run() throws Exception {
@@ -29,10 +32,13 @@ public class Client {
                     .group(group)
                     .channel(NioSocketChannel.class)
                     .handler(new ClientInitializer());
-            Channel channel = bStrap.connect(host, port).sync().channel();
-            out.println("client started!");
+            channel = bStrap.connect(host, port).sync().channel();
+            // 向master表明自己是client，并询问当前工作目录
+            byte type[] = {MSG.HEAD_CLIENT, MSG.CLIENT_QUERY_PWD};
+            channel.writeAndFlush(new String(type) + "\n");
             BufferedReader bReader = new BufferedReader(new InputStreamReader(System.in));
             while (true) {
+                // 循环获取用户输入
                 String data = bReader.readLine();
                 if(data.contains("exit")){
                     break;
