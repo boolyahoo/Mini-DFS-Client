@@ -1,8 +1,6 @@
 package com.xcoder;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 
 import java.io.PrintStream;
 
@@ -19,6 +17,22 @@ public class ClientMessageHandler extends SimpleChannelInboundHandler<String> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, String s) throws Exception {
         out.println(s);
+    }
+
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        Channel channel = ctx.channel();
+        out.println("channel active!");
+        out.println("channel remote address : " + channel.remoteAddress());
+        out.println("channel local address : " + channel.localAddress());
+        byte type = 0x01;
+        ChannelFuture cFuture = channel.writeAndFlush("client     fdffff" + "\r\n");
+        cFuture.addListener(new ChannelFutureListener() {
+            public void operationComplete(ChannelFuture future) throws Exception {
+                out.println("client write to master successfully");
+            }
+        });
     }
 
 

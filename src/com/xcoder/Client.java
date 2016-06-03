@@ -30,8 +30,6 @@ public class Client {
                     .channel(NioSocketChannel.class)
                     .handler(new ClientInitializer());
             Channel channel = bStrap.connect(host, port).sync().channel();
-            SocketAddress address = channel.localAddress();
-            out.println("client address:" + address.toString());
             out.println("client started!");
             BufferedReader bReader = new BufferedReader(new InputStreamReader(System.in));
             while (true) {
