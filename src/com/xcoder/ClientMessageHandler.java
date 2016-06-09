@@ -81,6 +81,19 @@ public class ClientMessageHandler {
 
 
     public String pwd(){
+        byte head[] = {MSG.HEAD_CLIENT, MSG.CLIENT_QUERY_PWD};
+        byte id[] = new byte[8];
+        Util.getBytes(ClientID, id, 0);
+        Out.println(new String(head) + new String(id));
+        try{
+            //等待服务器返回
+            byte msg[] = In.readLine().getBytes();
+            System.out.println("pwd return : " + msg);
+
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+
         return null;
     }
 
@@ -89,12 +102,13 @@ public class ClientMessageHandler {
             // 向master发送消息表明自己是client
             byte head[] = {MSG.HEAD_CLIENT, MSG.CLIENT_REGISTER};
             Out.println(new String(head) + "client message");
-            String rsp = In.readLine();
-            System.out.println("rsp length : " + rsp.length());
-            if(rsp.length() >= 2){
-                byte opType = rsp.substring(1,2).getBytes()[0];
+            byte msg[] = In.readLine().getBytes();
+            // TODO
+            System.out.println("msg length : " + msg.length);
+            if(msg.length >= 2){
+                byte opType = msg[1];
                 if(opType == MSG.MASTER_ACK){
-                    ClientID = Long.parseLong(rsp.substring(2, rsp.length()));
+                    ClientID = Util.parseNum(msg, 2, 2 + 8);
                     System.out.println("client id : " + ClientID);
                 }
             }
