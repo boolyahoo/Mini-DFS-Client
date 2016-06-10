@@ -4,7 +4,7 @@ package com.xcoder;
 import java.net.Socket;
 
 /**
- * Netty异步通信框架客户端
+ * 客户端
  */
 public class Boot {
     private static final String HOST = "127.0.0.1";
