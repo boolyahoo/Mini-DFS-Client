@@ -43,7 +43,7 @@ public class Util {
      * @param start : 第一个字节在buf的下标
      * @param end   : 最后一个字节在buf中下一位下标
      */
-    public static void getBytes(long num, byte buf[], int start, int end) {
+    public static void getNumBytes(long num, byte buf[], int start, int end) {
         //获取num的字节数组，低字节表示高位
         int i = end;
         while (--i >= start) {
@@ -68,5 +68,19 @@ public class Util {
             value = (value << 8) + (buf[i] & 0xFF);
         }
         return value;
+    }
+
+
+    /**
+     * 将string用字节表示
+     *
+     * @param src:源字符串
+     * @param buf:存放字节的缓存
+     * @param begin:缓存开始的下标
+     */
+    public static void stringToBytes(String src, byte buf[], int begin) {
+        for (int i = 0; i < src.length(); i++) {
+            buf[begin + i] = (byte) src.charAt(i);
+        }
     }
 }

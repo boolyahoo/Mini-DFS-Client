@@ -51,31 +51,28 @@ public class ClientMessageHandler {
 
     public void judgeCmd(String cmd) throws Exception {
         if (cmd.equals("pwd")) {
-            if (WorkingDir == null) {
-                getWorkingDir();
-            } else {
-                System.out.println("Working dir : " + WorkingDir);
-            }
+            /**打印当前目录**/
+            getWorkingDir();
         } else if (cmd.contains("cd")) {
-            String d[] = cmd.split(" ");
-            if (d.length >= 2) {
-                String dir = d[1];
-                updateWorkingDir(dir);
-            }
+            /**更改当前目录**/
+            updateWorkingDir(cmd);
         } else if (cmd.equals("ls")) {
-
+            /**列出当前目录下所有文件**/
+            listAllFile();
         } else if (cmd.contains("mkdir")) {
-            if (cmd.split(" ").length >= 2) {
-                String dir = cmd.split(" ")[1];
-                makeDir(dir);
-            }
+            /**在当前目录下创建目录**/
+            createFile(cmd, MSG.FILE_DIR);
         } else if (cmd.contains("create")) {
-
+            /**在当前目录下创建文件**/
+            createFile(cmd, MSG.FILE_COMN);
         } else if (cmd.contains("rm")) {
-
+            /**删除当前目录下的文件或目录**/
+            removeFile(cmd);
         } else if (cmd.contains("stat")) {
-
+            /**列出当前目录下某一文件的信息**/
+            System.out.println("sorry, not implement yet");
         } else if (cmd.equals("exit")) {
+            Out.close();
             System.exit(0);
         } else {
             System.out.println("wrong command");
@@ -84,39 +81,62 @@ public class ClientMessageHandler {
 
 
     private void getWorkingDir() {
+        /**
+         * pwd:打印当前工作目录
+         *
+         * 发送到消息格式：
+         * [Head(1B) OpType(1B) ClientID(8B)]
+         *
+         * 返回消息格式：
+         * [Head(1B) Status(1B) WorkingDir|Message(variable)]
+         * */
         byte buf[] = new byte[10];
         buf[0] = MSG.HEAD_CLIENT;
         buf[1] = MSG.CLIENT_QUERY_PWD;
-        Util.getBytes(ClientID, buf, 2, 2 + 8);
+        Util.getNumBytes(ClientID, buf, 2, 2 + 8);
         try {
             Out.write(buf, 0, buf.length);
             Out.flush();
             //等待服务器返回
             int len = In.read(Msg, 0, Msg.length);
-            if (len == -1) {
-                return;
+            byte status = Msg[1];
+            switch (status) {
+                case MSG.MASTER_ACK_OK:
+                    WorkingDir = new String(Msg, 2, len - 2);
+                    break;
+                case MSG.MASTER_ACK_FAIL:
+                    System.out.println("error:" + new String(Msg, 2, len - 2));
+                    break;
             }
-            WorkingDir = new String(Msg, 2, len - 2);
         } catch (Exception e) {
             e.printStackTrace();
         }
+        System.out.println("working dir : " + WorkingDir);
     }
 
 
-    private void updateWorkingDir(String dir) throws Exception {
+    private void updateWorkingDir(String cmd) throws Exception {
         /**
+         * 更改工作目录到dir表示的目录
+         *
          * 发送到消息格式：
          * [Head(1B) OpType(1B) ClientID(8B) TargetDir(variable)]
+         *
          * 返回消息格式：
          * [Head(1B) Status(1B) NewWorkingDir(variable)|errorMessage]
          * */
+        String dir;
+        if (cmd.split(" ").length >= 2) {
+            dir = cmd.split(" ")[1];
+        }else{
+            System.out.println("error:inout target directory");
+            return;
+        }
         byte buf[] = new byte[2 + 8 + dir.length()];
         buf[0] = MSG.HEAD_CLIENT;
         buf[1] = MSG.CLIENT_UPDATE_PWD;
-        Util.getBytes(ClientID, buf, 2, 2 + 8);
-        for (int i = 0; i < dir.length(); i++) {
-            buf[i + 10] = (byte) dir.charAt(i);
-        }
+        Util.getNumBytes(ClientID, buf, 2, 2 + 8);
+        Util.stringToBytes(dir, buf, 10);
         Out.write(buf);
         int len = In.read(Msg, 0, Msg.length);
         if (len >= 2) {
@@ -134,9 +154,17 @@ public class ClientMessageHandler {
     }
 
 
+    /**
+     * 向master发送消息表明自己是client
+     */
     public void clientRegister() {
+        /**
+         * 发送到消息格式：
+         * [Head(1B) OpType(1B)]
+         * 返回消息格式：
+         * [Head(1B) Status(1B) ClientID(8B)]
+         * */
         try {
-            // 向master发送消息表明自己是client
             byte head[] = {MSG.HEAD_CLIENT, MSG.CLIENT_REGISTER};
             Out.write(head);
             Out.flush();
@@ -148,10 +176,10 @@ public class ClientMessageHandler {
                 switch (status) {
                     case MSG.MASTER_ACK_OK:
                         ClientID = Util.parseNum(Msg, 2, 2 + 8);
+                        WorkingDir = "/";
                         System.out.println("client id : " + ClientID);
                         break;
                 }
-
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -159,32 +187,154 @@ public class ClientMessageHandler {
     }
 
 
-    public void makeDir(String dir) throws Exception {
+    /**
+     * 在当前工作目录下创建文件夹
+     *
+     * @param cmd：命令行
+     * @param type：文件类型
+     */
+    public void createFile(String cmd, byte type) throws Exception {
         /**
-         * 在当前工作目录下创建文件夹
          * 发送消息格式：
-         * [Head(1B) OpType(1B) DirName(variable)]
+         * [Head(1B) OpType(1B) ClientID(8B) FileType(1B) DirName(variable)]
          *
+         * 返回消息格式：
+         * [Head(1B) Status(1B) Message(variable)]
          * */
-        byte buf[] = new byte[2 + dir.length()];
+
+        if (cmd.split(" ").length >= 2) {
+            String dir = cmd.split(" ")[1];
+            if (dir.charAt(0) == '/') {
+                System.out.println("error:you can only make directories or files under current working directory");
+                return;
+            }
+        }else{
+            System.out.println("error:input a file or directory name");
+            return;
+        }
+        String file = cmd.split(" ")[1];
+        byte buf[] = new byte[2 + 8 + 1 + file.length()];
         buf[0] = MSG.HEAD_CLIENT;
         buf[1] = MSG.CLIENT_CREATE_FILE;
-        for (int i = 0; i < dir.length(); i++) {
-            buf[i + 2] = (byte) dir.charAt(i);
-        }
+        Util.getNumBytes(ClientID, buf, 2, 2 + 8);
+        buf[10] = type;
+        Util.stringToBytes(file, buf, 11);
         Out.write(buf, 0, buf.length);
         int len = In.read(Msg, 0, Msg.length);
         if (len >= 2) {
             byte status = Msg[1];
             switch (status) {
                 case MSG.MASTER_ACK_OK:
+                    break;
+                case MSG.MASTER_ACK_FAIL:
+                    String msg = new String(Msg, 2, len - 2);
+                    System.out.println(msg);
+                    break;
+            }
+        }
+    }
 
+
+    /**
+     * 列出当前工作目录下所有文件
+     */
+    public void listAllFile() throws Exception {
+        /**
+         * 列出当前工作目录下所有文件
+         *
+         * 发送消息格式：
+         * [Head(1B) OpType(1B) ClientID(8B) FileName(variable)]
+         *
+         * 返回的消息格式：
+         * OK : [Head(1B) Status(1B) FileList]
+         * FileList:
+         * Type(1B) FileNameLenth(1B) FileName(variable)
+         *
+         * FAIL : [Head(1B) Status(1B) ErrorMessage(variable)]
+         * */
+        byte buf[] = new byte[1024];
+        buf[0] = MSG.HEAD_CLIENT;
+        buf[1] = MSG.CLIENT_READ_FILE;
+        Util.getNumBytes(ClientID, buf, 2, 2 + 8);
+        Util.stringToBytes(WorkingDir, buf, 10);
+        Out.write(buf, 0, 10 + WorkingDir.length());
+        int len = In.read(Msg, 0, Msg.length);
+        if (len >= 2) {
+            byte status = Msg[1];
+            switch (status) {
+                case MSG.MASTER_ACK_OK:
+                    int index = 2;
+                    while (index < len) {
+                        byte type = Msg[index++];
+                        byte step = Msg[index++];
+                        String f = new String(Msg, index, step);
+                        index += step;
+                        System.out.println((type == MSG.FILE_COMN ? "-:" : "d:") + f);
+                    }
+                    break;
+                case MSG.MASTER_ACK_FAIL:
+                    String msg = new String(Msg, 0, len - 2);
+                    System.out.println(msg);
+                    break;
+            }
+        }
+
+    }
+
+
+    /**
+     * 删除当前目录下的文件
+     * @param cmd:命令行
+     * */
+    private void removeFile(String cmd) throws Exception{
+        /**
+         * 发送消息格式：
+         * [Head(1B) OpType(1B) ClientID(8B) FileName(variable)]
+         *
+         * 返回的消息格式：
+         * [Head(1B) Status(1B) Message(variable)]
+         * */
+        if(cmd.split(" ").length < 2){
+            System.out.println("error:input file name");
+            return;
+        }
+        String file = cmd.split(" ")[1];
+        if(file.charAt(0) == '/'){
+            System.out.println("error:can only remove file or directory under current working directory");
+            return;
+        }
+
+        if(WorkingDir.equals("/")){
+            file = WorkingDir + file;
+        }else{
+            file = WorkingDir + "/" + file;
+        }
+        byte buf[] = new byte[1024];
+        buf[0] = MSG.HEAD_CLIENT;
+        buf[1] = MSG.CLIENT_DELETE_FILE;
+        Util.getNumBytes(ClientID, buf, 2, 2 + 8);
+        Util.stringToBytes(file, buf, 10);
+        Out.write(buf, 0, 10 + file.length());
+        int len = In.read(Msg, 0, Msg.length);
+        if(len >= 2){
+            byte status = Msg[1];
+            switch (status){
+                case MSG.MASTER_ACK_OK:
+                    System.out.println("remove " + file + " successful");
+                    break;
+                case MSG.MASTER_ACK_FAIL:
+                    String msg = new String(Msg, 2, len - 2);
+                    System.out.println(msg);
                     break;
             }
         }
 
 
+
+
+
     }
+
 
     public void printMenu() {
         System.out.println("usage:\n" +
