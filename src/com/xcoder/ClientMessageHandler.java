@@ -117,7 +117,7 @@ public class ClientMessageHandler {
 
     private void updateWorkingDir(String cmd) throws Exception {
         /**
-         * 更改工作目录到dir表示的目录
+         * 更改工作目录到dir表示的目录,发送消息时用绝对路径表示
          *
          * 发送到消息格式：
          * [Head(1B) OpType(1B) ClientID(8B) TargetDir(variable)]
@@ -131,6 +131,13 @@ public class ClientMessageHandler {
         }else{
             System.out.println("error:inout target directory");
             return;
+        }
+        if(!dir.equals("..")){
+            if(WorkingDir.equals("/")){
+                dir = WorkingDir + dir;
+            }else{
+                dir = WorkingDir + "/" + dir;
+            }
         }
         byte buf[] = new byte[2 + 8 + dir.length()];
         buf[0] = MSG.HEAD_CLIENT;
@@ -162,7 +169,7 @@ public class ClientMessageHandler {
          * 发送到消息格式：
          * [Head(1B) OpType(1B)]
          * 返回消息格式：
-         * [Head(1B) Status(1B) ClientID(8B)]
+         * [Head(1B) Status(1B) ClientID(8B) WorkingDir(variable)]
          * */
         try {
             byte head[] = {MSG.HEAD_CLIENT, MSG.CLIENT_REGISTER};
@@ -176,7 +183,7 @@ public class ClientMessageHandler {
                 switch (status) {
                     case MSG.MASTER_ACK_OK:
                         ClientID = Util.parseNum(Msg, 2, 2 + 8);
-                        WorkingDir = "/";
+                        WorkingDir = new String(Msg, 10, len - 10);
                         System.out.println("client id : " + ClientID);
                         break;
                 }
@@ -196,12 +203,12 @@ public class ClientMessageHandler {
     public void createFile(String cmd, byte type) throws Exception {
         /**
          * 发送消息格式：
-         * [Head(1B) OpType(1B) ClientID(8B) FileType(1B) DirName(variable)]
+         * [Head(1B) OpType(1B) ClientID(8B) FileType(1B) FileName(variable)]
+         * 文件名为绝对路径表示
          *
          * 返回消息格式：
          * [Head(1B) Status(1B) Message(variable)]
          * */
-
         if (cmd.split(" ").length >= 2) {
             String dir = cmd.split(" ")[1];
             if (dir.charAt(0) == '/') {
@@ -213,6 +220,11 @@ public class ClientMessageHandler {
             return;
         }
         String file = cmd.split(" ")[1];
+        if(WorkingDir.equals("/")){
+            file = WorkingDir + file;
+        }else{
+            file = WorkingDir + "/" + file;
+        }
         byte buf[] = new byte[2 + 8 + 1 + file.length()];
         buf[0] = MSG.HEAD_CLIENT;
         buf[1] = MSG.CLIENT_CREATE_FILE;
@@ -244,6 +256,7 @@ public class ClientMessageHandler {
          *
          * 发送消息格式：
          * [Head(1B) OpType(1B) ClientID(8B) FileName(variable)]
+         * 文件名为绝对路径表示
          *
          * 返回的消息格式：
          * OK : [Head(1B) Status(1B) FileList]
@@ -288,6 +301,7 @@ public class ClientMessageHandler {
      * */
     private void removeFile(String cmd) throws Exception{
         /**
+         * 文件名在发送的时候为绝对路径表示
          * 发送消息格式：
          * [Head(1B) OpType(1B) ClientID(8B) FileName(variable)]
          *
@@ -328,10 +342,6 @@ public class ClientMessageHandler {
                     break;
             }
         }
-
-
-
-
 
     }
 
